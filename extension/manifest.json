@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Busca de Vagas - LinkedIn e Gupy",
+  "version": "2.0",
+  "description": "Busca automática de vagas de estágio TI no LinkedIn e Gupy com filtros inteligentes",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://portal.gupy.io/*",
+    "https://www.google.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Busca de Vagas"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["lib/validator.js", "content/linkedin.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://portal.gupy.io/*"],
+      "js": ["lib/validator.js", "content/gupy.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://www.google.com/*"],
+      "js": ["lib/validator.js", "content/gupy.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

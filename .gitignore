@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.db
+data/curriculo*.pdf
+venv/
+.env.local
+data/chrome_profile/
