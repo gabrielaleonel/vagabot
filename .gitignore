@@ -7,3 +7,4 @@ data/curriculo*.pdf
 venv/
 .env.local
 data/chrome_profile/
+*.zip
