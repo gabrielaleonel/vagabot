@@ -243,48 +243,35 @@ async function iniciarBusca(palavrasChave, plataformas, filtroData = 7) {
     }
 
     if (plataformas.gupy) {
-      log("BACKGROUND", `Gupy: buscando "${kw}"`);
-      await enviarProgresso(`Gupy: "${kw}"`);
+      log("BACKGROUND", `Gupy: pesquisando "${kw}"`);
+      await enviarProgresso(`Gupy: pesquisando "${kw}"...`);
 
       let resultado = { vagas: [] };
       let tab = null;
       try {
-        tab = await abrirAba(`https://portal.gupy.io/job-search?term=${encodeURIComponent(kw)}&type=internship`);
+        tab = await abrirAba(`https://portal.gupy.io/job-search`);
       } catch (e) {
         if (e.name === "AbortError") break;
         continue;
       }
 
-      await delay(9000);
+      await enviarProgresso(`Gupy: aguardando resultados para "${kw}"...`);
+      await delay(6000);
       if (!isRunning) { await fecharAba(tab); break; }
 
-      resultado = await navegarExtrair(tab.id, "extrair_gupy", 20000, { keyword: kw });
+      await enviarProgresso(`Gupy: coletando vagas para "${kw}"...`);
+      resultado = await navegarExtrair(tab.id, "extrair_gupy", 60000, { keyword: kw });
       await fecharAba(tab);
-
-      if (!resultado.vagas || resultado.vagas.length === 0) {
-        if (!isRunning) break;
-        await enviarProgresso(`Gupy Google: "${kw}"`);
-        try {
-          tab = await abrirAba(
-            `https://www.google.com/search?q=site:portal.gupy.io+${encodeURIComponent(kw)}+estágio+São+Paulo&tbs=qdr:w`
-          );
-        } catch (e) {
-          if (e.name === "AbortError") break;
-          continue;
-        }
-
-        await delay(6000);
-        if (!isRunning) { await fecharAba(tab); break; }
-        resultado = await navegarExtrair(tab.id, "extrair_gupy", 12000, { keyword: kw });
-        await fecharAba(tab);
-      }
 
       if (resultado.vagas && resultado.vagas.length > 0) {
         totalEncontradas += resultado.vagas.length;
-        log("BACKGROUND", `Gupy: ${resultado.vagas.length} vagas listadas para "${kw}"`);
-        await enviarProgresso(`Gupy: ${resultado.vagas.length} listadas em "${kw}"`, { encontradas: totalEncontradas, candidatadas: totalConfirmadas });
+        log("BACKGROUND", `Gupy: ${resultado.vagas.length} vagas encontradas para "${kw}"`);
+        await enviarProgresso(`Gupy: ${resultado.vagas.length} vagas encontradas para "${kw}"`, { encontradas: totalEncontradas, candidatadas: totalConfirmadas });
         const c = await processarVagas(resultado.vagas);
         totalConfirmadas += c;
+      } else {
+        log("BACKGROUND", `Gupy: nenhuma vaga para "${kw}"`);
+        await enviarProgresso(`Gupy: nenhuma vaga para "${kw}"`);
       }
     }
   }

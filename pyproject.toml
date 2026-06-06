@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "vagabot"
+version = "1.0.0"
+description = "Busca automática de vagas de estágio em TI no LinkedIn e Gupy"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "customtkinter>=5.2.2",
+    "playwright>=1.50.0",
+    "python-dotenv>=1.0.0",
+    "pandas>=2.2.0",
+    "pillow>=10.0.0",
+]
+
+[project.scripts]
+vagabot = "app.__main__:main"
+
+[tool.setuptools]
+py-modules = ["main"]
+packages = ["app"]

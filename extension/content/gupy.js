@@ -1,370 +1,414 @@
 (function () {
   "use strict";
 
-  const SELETORES_CARD_VAGA_GUPY = [
-    'a[data-testid="job-card"]',
-    'div[data-testid="job-card"]',
-    'a[class*="job-card"]',
-    'div[class*="job-card"]',
-    'div[class*="JobCard"]',
-    'a[href*="/jobs/"]'
-  ];
-
-  const SELETORES_TITULO_GUPY = [
-    '[data-testid="job-title"]',
-    'h2[class*="job-title"]',
-    'h2[class*="JobTitle"]',
-    'h3[class*="title"]',
-    'a[data-testid="job-card"] h2',
-    'a[class*="job-card"] h2',
-    'div[class*="job-card"] h2',
-    'div[class*="job-card"] h3'
-  ];
-
-  const SELETORES_EMPRESA_GUPY = [
-    '[data-testid="job-company"]',
-    'span[class*="company"]',
-    'span[class*="Company"]',
-    'p[class*="company"]'
-  ];
-
-  const SELETORES_LOCAL_GUPY = [
-    '[data-testid="job-location"]',
-    'span[class*="location"]',
-    'span[class*="Location"]',
-    'p[class*="location"]',
-    'div[class*="location"]'
-  ];
-
-  const SELETORES_DATA_GUPY = [
-    '[data-testid="job-published"]',
-    'time[datetime]',
-    'span[class*="date"]',
-    'span[class*="Date"]',
-    'p[class*="date"]'
-  ];
-
-  const SELETORES_MODALIDADE_GUPY = [
-    '[data-testid="job-modality"]',
-    'span[class*="modality"]',
-    'span[class*="remote"]',
-    'span[class*="hybrid"]',
-    'span[class*="presential"]'
-  ];
-
-  const SELETORES_LINK_GUPY = [
-    'a[data-testid="job-card"]',
-    'a[class*="job-card"]',
-    'a[href*="/jobs/"]',
-    'a[href*="/vagas/"]'
-  ];
-
-  const SELETORES_CAIXA_BUSCA = [
-    'input[data-testid="search-input"]',
-    'input[placeholder*="Buscar"]',
-    'input[placeholder*="Search"]',
-    'input[type="search"]',
-    'input[aria-label*="Buscar"]',
-    'input[aria-label*="Search"]'
-  ];
-
-  const SELETORES_BOTAO_APLICAR_GUPY = [
-    'button[data-testid="apply-button"]',
-    'button[class*="apply"]',
-    'button[class*="Apply"]',
-    'button[aria-label*="Candidatar"]',
-    'button[aria-label*="Inscrever"]',
-    'button:has(span:contains("Candidatar"))',
-    'button:has(span:contains("Inscrever"))',
-    'a[class*="apply"]',
-    'a[class*="Apply"]'
-  ];
-
-  const SELETORES_BOTAO_ENVIAR_GUPY = [
-    'button[data-testid="submit-application"]',
-    'button[class*="submit"]',
-    'button[class*="Submit"]',
-    'button[aria-label*="Enviar"]',
-    'button[aria-label*="Concluir"]',
-    'button:has(span:contains("Enviar"))',
-    'button:has(span:contains("Concluir"))',
-    'button[data-testid="form-submit"]',
-    'button[type="submit"]'
-  ];
-
-  const SELETORES_RESULTADO_GOOGLE = [
-    'div.g',
-    'div[class*="yuRUbf"]',
-    'a[href*="portal.gupy.io"]'
-  ];
-
   let isRunning = false;
-  let timers = [];
-  let filtroDataAtual = 7;
-
-  function limparTimers() {
-    timers.forEach(t => { try { clearTimeout(t); clearInterval(t); } catch {} });
-    timers = [];
-  }
-
-  function agendar(fn, ms) {
-    const id = setTimeout(() => {
-      if (!isRunning) return;
-      fn();
-    }, ms);
-    timers.push(id);
-    return id;
-  }
-
-  function agendarIntervalo(fn, ms) {
-    const id = setInterval(() => {
-      if (!isRunning) { clearInterval(id); return; }
-      fn();
-    }, ms);
-    timers.push(id);
-    return id;
-  }
-
-  function verificarCancelamento() {
-    if (!isRunning) {
-      log("Busca interrompida pelo usuário");
-      limparTimers();
-      return false;
-    }
-    return true;
-  }
-
-  function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
 
   function log(msg, dados = null) {
     if (dados) console.log(`[GUPY] ${msg}`, dados);
     else console.log(`[GUPY] ${msg}`);
   }
 
-  function validarContextoVaga(elemento) {
-    if (!elemento) return { valido: false, motivo: "Elemento nulo" };
-    const v = validarElemento(elemento);
-    if (!v.valido) return v;
-    const texto = elemento.textContent.toLowerCase();
-    if (texto.includes("vendedor") || texto.includes("telemarketing") || texto.includes("professor")) {
-      return { valido: false, motivo: "Palavra negativa no cartão" };
-    }
-    return { valido: true, motivo: "Contexto de vaga válido" };
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function extrairVagasGupy(diasMax) {
-    if (!verificarCancelamento()) return [];
-    log(`Extraindo vagas do Gupy (portal direto, filtro data: ${diasMax === 0 ? "qualquer" : diasMax + " dias"})`);
-
-    const vagas = [];
-    const cards = tentarSeletoresTodos(SELETORES_CARD_VAGA_GUPY);
-    log(`${cards.length} cards encontrados`);
-
-    for (let i = 0; i < cards.length; i++) {
-      if (!verificarCancelamento()) break;
-      const card = cards[i];
-
-      const ctx = validarContextoVaga(card);
-      if (!ctx.valido) { log(`Card ${i}: ${ctx.motivo}`); continue; }
-
-      const elLink = card.tagName === "A" ? card : tentarSeletores(SELETORES_LINK_GUPY, card);
-      if (!elLink) { log(`Card ${i}: Nenhum link encontrado`); continue; }
-
-      const vLink = validarElemento(elLink);
-      if (!vLink.valido) { log(`Card ${i}: Link inválido - ${vLink.motivo}`); continue; }
-
-      const url = elLink.href || elLink.getAttribute("href");
-      if (!url) { log(`Card ${i}: Link sem href`); continue; }
-      if (!url.includes("gupy.io")) { log(`Card ${i}: Link não é gupy: ${url}`); continue; }
-
-      const titulo = tentarSeletores(SELETORES_TITULO_GUPY, card);
-      const texto = titulo ? (titulo.textContent || "").trim() : "";
-      if (!texto) continue;
-
-      const filtro = filtrarPorPalavras(texto);
-      if (!filtro.valido) { log(`Card ${i}: ${filtro.motivo}`); continue; }
-
-      const empresa = tentarSeletores(SELETORES_EMPRESA_GUPY, card);
-      const local = tentarSeletores(SELETORES_LOCAL_GUPY, card);
-      const data = tentarSeletores(SELETORES_DATA_GUPY, card);
-      const modalidade = tentarSeletores(SELETORES_MODALIDADE_GUPY, card);
-
-      const textoLocal = local ? (local.textContent || "").trim() : "";
-      const textoData = data ? (data.textContent || "").trim() : "";
-
-      const locOk = validarLocalizacaoSP(textoLocal);
-      if (!locOk.valido) { log(`Card ${i}: ${locOk.motivo}`); continue; }
-
-      const dateOk = validarDataPublicacao(textoData, diasMax);
-      if (!dateOk.valido) { log(`Card ${i}: ${dateOk.motivo}`); continue; }
-
-      vagas.push({
-        titulo: texto,
-        empresa: empresa ? (empresa.textContent || "").trim() : "",
-        local: textoLocal,
-        data: textoData,
-        modalidade: modalidade ? (modalidade.textContent || "").trim() : "",
-        url,
-        plataforma: "gupy"
-      });
-      log(`Vaga extraída: ${texto} - ${vagas[vagas.length-1].empresa}`);
+  function verificarCancelamento() {
+    if (!isRunning) {
+      log("Busca interrompida");
+      return false;
     }
-
-    return vagas;
+    return true;
   }
 
-  function extrairVagasGoogle() {
-    if (!verificarCancelamento()) return [];
-    log("Extraindo vagas do Google (fallback Gupy)");
+  const CARD_SELECTORS = [
+    'a[data-testid="job-card"]',
+    'a[class*="job-card"]',
+    'a[class*="JobCard"]',
+    'a[class*="sc-"]',
+    '[data-testid*="job-card"]',
+    '[class*="job-card"]',
+    '[class*="JobCard"]',
+    'a[href*="/job/"]',
+    'a[href*="/vagas/"]',
+  ];
 
-    const vagas = [];
-    const resultados = document.querySelectorAll('a[href*="portal.gupy.io"]');
-    log(`${resultados.length} links Gupy encontrados no Google`);
+  const TITLE_SELECTORS = [
+    '[data-testid="job-title"]',
+    'h2[class*="job-title"]',
+    'h2[class*="JobTitle"]',
+    'h2',
+    'h3',
+  ];
 
-    const visitados = new Set();
+  const COMPANY_SELECTORS = [
+    '[data-testid="job-company"]',
+    '[data-testid="company-name"]',
+    'p[class*="company"]',
+    'span[class*="company"]',
+    'p[class*="Company"]',
+    '[class*="company-name"]',
+  ];
 
-    for (const link of resultados) {
-      if (!verificarCancelamento()) break;
-      const url = link.href || "";
-      if (!url.includes("gupy.io")) continue;
-      if (visitados.has(url)) continue;
-      visitados.add(url);
+  const LOCATION_SELECTORS = [
+    '[data-testid="job-location"]',
+    '[class*="location"]',
+    '[class*="Location"]',
+    '[class*="locality"]',
+  ];
 
-      const vLink = validarElemento(link);
-      if (!vLink.valido) continue;
+  const MODALITY_SELECTORS = [
+    '[data-testid="job-modality"]',
+    '[class*="modality"]',
+    '[class*="Modality"]',
+    '[class*="remote"]',
+    '[class*="hybrid"]',
+    '[class*="presential"]',
+    '[class*="on-site"]',
+  ];
 
-      let texto = (link.textContent || link.getAttribute("aria-label") || "").trim();
-      const pai = link.closest("div.g, div[class*='yuRUbf']");
-      if (!texto && pai) {
-        const h3 = pai.querySelector("h3");
-        texto = h3 ? (h3.textContent || "").trim() : "";
+  function queryFirst(selectors, scope = document) {
+    for (const sel of selectors) {
+      try {
+        const el = scope.querySelector(sel);
+        if (el) return el;
+      } catch (e) {
+        // seletor invalido
       }
-      if (!texto) continue;
-
-      const filtro = filtrarPorPalavras(texto);
-      if (!filtro.valido) { log(`Google link: ${filtro.motivo}`); continue; }
-
-      vagas.push({
-        titulo: texto,
-        empresa: "",
-        local: "",
-        data: "",
-        modalidade: "",
-        url,
-        plataforma: "gupy"
-      });
-      log(`Vaga extraída (Google): ${texto}`);
     }
-
-    return vagas;
+    return null;
   }
 
-  async function aplicarVagaGupy() {
-    if (!verificarCancelamento()) return { status: "erro", motivo: "Cancelado" };
-    log("Iniciando candidatura automática Gupy");
+  function queryAll(selectors, scope = document) {
+    for (const sel of selectors) {
+      try {
+        const list = scope.querySelectorAll(sel);
+        if (list.length > 0) return list;
+      } catch (e) {
+        // seletor invalido
+      }
+    }
+    return [];
+  }
 
-    agendar(() => {
-      if (!isRunning) return;
-      log("Procurando botão de candidatar...");
-      const botoes = tentarSeletoresTodos(SELETORES_BOTAO_APLICAR_GUPY);
-      if (botoes.length === 0) { log("Nenhum botão de candidatura encontrado"); return; }
+  const SEARCH_INPUT_SELECTORS = [
+    'input[data-testid="search-input"]',
+    'input[placeholder*="Buscar"]',
+    'input[placeholder*="Search"]',
+    'input[type="search"]',
+    'input[aria-label*="Buscar"]',
+    'input[aria-label*="vagas"]',
+    'input[aria-label*="Vagas"]',
+  ];
 
-      for (const btn of botoes) {
-        if (!isRunning) return;
-        const v = validarElemento(btn);
-        if (!v.valido) { log(`Botão inválido: ${v.motivo}`); continue; }
-        const txt = (btn.textContent || btn.getAttribute("aria-label") || "").toLowerCase();
-        if (txt.includes("candidatar") || txt.includes("inscrever")) {
-          log(`Clicando: "${txt}" (visível: sim)`);
-          btn.click();
+  const SEARCH_BUTTON_SELECTORS = [
+    'button[data-testid="search-button"]',
+    'button[aria-label*="Buscar"]',
+    'button[type="submit"]',
+    'button[class*="search"]',
+    'button[class*="Search"]',
+  ];
+
+  function obterCards() {
+    return queryAll(CARD_SELECTORS);
+  }
+
+  async function realizarBusca(keyword) {
+    log(`Buscando "${keyword}" na caixa de pesquisa...`);
+
+    await delay(1000);
+    if (!verificarCancelamento()) return false;
+
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("term") === keyword) {
+        log(`URL ja contem o termo "${keyword}" — verificando resultados`);
+        return true;
+      }
+    } catch {}
+
+    let searchInput = null;
+    for (const sel of SEARCH_INPUT_SELECTORS) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) { searchInput = el; break; }
+      } catch {}
+    }
+
+    if (!searchInput) {
+      log("Caixa de busca nao encontrada na pagina");
+      return false;
+    }
+
+    searchInput.focus();
+    searchInput.click();
+    await delay(300);
+    if (!verificarCancelamento()) return false;
+
+    searchInput.value = "";
+    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype, "value"
+    )?.set;
+    if (nativeSetter) {
+      nativeSetter.call(searchInput, keyword);
+    } else {
+      searchInput.value = keyword;
+    }
+
+    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    searchInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await delay(200);
+    if (!verificarCancelamento()) return false;
+
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Enter", code: "Enter", keyCode: 13, which: 13,
+      bubbles: true, cancelable: true
+    }));
+
+    for (const sel of SEARCH_BUTTON_SELECTORS) {
+      try {
+        const btn = document.querySelector(sel);
+        if (btn) {
+          const estilo = window.getComputedStyle(btn);
+          if (estilo.display !== "none" && estilo.visibility !== "hidden") {
+            btn.click();
+            log("Botao de busca clicado");
+            break;
+          }
+        }
+      } catch {}
+    }
+
+    log(`Keyword "${keyword}" inserida e Enter pressionado`);
+    return true;
+  }
+
+  async function aguardarCards(timeoutMs = 25000) {
+    log("Aguardando carregamento dos resultados...");
+    const inicio = Date.now();
+
+    while (Date.now() - inicio < timeoutMs) {
+      if (!verificarCancelamento()) return { ok: false, motivo: "cancelado" };
+
+      const cards = obterCards();
+      if (cards.length > 0) {
+        log(`${cards.length} card(s) encontrado(s)`);
+        return { ok: true, quantidade: cards.length };
+      }
+
+      const vazio = document.querySelector(
+        '[class*="no-result"], [class*="NoResult"], [class*="empty"], [data-testid*="no-result"]'
+      );
+      if (vazio && vazio.offsetParent !== null) {
+        log("Pagina indica que nao ha resultados para esta busca");
+        return { ok: false, motivo: "sem_resultados" };
+      }
+
+      await delay(600);
+    }
+
+    log("Timeout: resultados nao carregaram dentro do prazo");
+    return { ok: false, motivo: "timeout" };
+  }
+
+  async function rolarParaMais(maxScrolls = 15) {
+    log("Rolando pagina para carregar mais vagas...");
+    let scrolls = 0;
+    let ultimoTotal = 0;
+    let estagnado = 0;
+
+    while (scrolls < maxScrolls) {
+      if (!verificarCancelamento()) return;
+
+      const cards = obterCards();
+      const total = cards.length;
+
+      if (total > ultimoTotal) {
+        log(`Scroll #${scrolls + 1}: ${total} vagas (${total - ultimoTotal} novas)`);
+        ultimoTotal = total;
+        estagnado = 0;
+      } else {
+        estagnado++;
+      }
+
+      window.scrollBy(0, 1000);
+      await delay(1500);
+
+      scrolls++;
+
+      const noFim = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200;
+      if (noFim) {
+        await delay(2500);
+        if (obterCards().length <= total && estagnado >= 1) {
+          log("Fim da pagina alcancado");
           break;
         }
       }
-    }, 2000);
 
-    agendar(() => {
-      if (!isRunning) return;
-      log("Procurando botão de enviar...");
-      let tentativas = 0;
-      const MAX = 20;
+      if (estagnado >= 3) {
+        log("Nenhuma nova vaga carregada apos 3 scrolls - interrompendo");
+        break;
+      }
+    }
 
-      const intervalId = agendarIntervalo(() => {
-        if (!isRunning) { clearInterval(intervalId); return; }
-        tentativas++;
-        log(`Envio tentativa ${tentativas}/${MAX}`);
-
-        const botoes = tentarSeletoresTodos(SELETORES_BOTAO_ENVIAR_GUPY);
-        for (const btn of botoes) {
-          if (!isRunning) break;
-          const v = validarElemento(btn);
-          if (!v.valido) continue;
-          const txt = (btn.textContent || btn.getAttribute("aria-label") || "").toLowerCase();
-          if (txt.includes("enviar") || txt.includes("concluir") || txt.includes("submit")) {
-            log(`Clicando em enviar: "${txt}"`);
-            btn.click();
-            log("Candidatura Gupy enviada com sucesso!");
-            clearInterval(intervalId);
-            return;
-          }
-        }
-
-        if (tentativas >= MAX) {
-          clearInterval(intervalId);
-          log("Máximo de tentativas de envio atingido");
-        }
-      }, 3000);
-    }, 5000);
-
-    return { status: "processando" };
+    log(`Scroll concluido: ${obterCards().length} vagas no total`);
   }
 
-  function buscarNoGupy(keyword, sendResponse, diasMax) {
-    let vagas = [];
-    const isGoogle = window.location.hostname.includes("google");
+  function extrairVaga(card, keyword) {
+    let url = card.href || card.getAttribute("href") || "";
+    if (!url) return null;
+    if (!url.startsWith("http")) {
+      try { url = new URL(url, window.location.origin).href; } catch { return null; }
+    }
+    if (!url.includes("gupy.io")) return null;
 
-    if (isGoogle) {
-      agendar(() => {
-        vagas = extrairVagasGoogle(diasMax);
-        log(`${vagas.length} vagas encontradas no Google`);
+    const elTitulo = queryFirst(TITLE_SELECTORS, card);
+    let titulo = elTitulo ? (elTitulo.textContent || "").trim() : "";
+    if (!titulo) {
+      const texto = (card.textContent || "").trim();
+      titulo = texto.split("\n")[0].trim();
+    }
+    if (!titulo || titulo.length < 3) return null;
+
+    const elEmpresa = queryFirst(COMPANY_SELECTORS, card);
+    let empresa = elEmpresa ? (elEmpresa.textContent || "").trim() : "";
+    if (empresa === titulo) empresa = "";
+
+    const elLocal = queryFirst(LOCATION_SELECTORS, card);
+    let local = elLocal ? (elLocal.textContent || "").trim() : "";
+    if (local === titulo || local === empresa) local = "";
+
+    const elMod = queryFirst(MODALITY_SELECTORS, card);
+    let modalidade = elMod ? (elMod.textContent || "").trim() : "";
+    if (modalidade === titulo || modalidade === empresa || modalidade === local) modalidade = "";
+
+    return {
+      titulo,
+      empresa,
+      local,
+      modalidade,
+      url,
+      origem: "gupy",
+      keyword
+    };
+  }
+
+  async function executarExtracao(keyword) {
+    if (!verificarCancelamento()) return [];
+
+    log(`Iniciando extracao para keyword: "${keyword}"`);
+
+    const searchOk = await realizarBusca(keyword);
+    if (!searchOk) {
+      log(`Nao foi possivel buscar por "${keyword}"`);
+      return [];
+    }
+
+    if (!verificarCancelamento()) return [];
+
+    const espera = await aguardarCards(30000);
+    if (!espera.ok) {
+      log(`Sem resultados para "${keyword}": ${espera.motivo}`);
+      return [];
+    }
+
+    if (!verificarCancelamento()) return [];
+
+    await rolarParaMais(15);
+
+    if (!verificarCancelamento()) return [];
+
+    const cards = obterCards();
+    log(`Processando ${cards.length} card(s)...`);
+
+    const vagas = [];
+    const urlsVistas = new Set();
+
+    for (let i = 0; i < cards.length; i++) {
+      if (!verificarCancelamento()) break;
+
+      const card = cards[i];
+
+      try {
+        const estilo = window.getComputedStyle(card);
+        if (estilo.display === "none" || estilo.visibility === "hidden") continue;
+      } catch { continue; }
+
+      const vaga = extrairVaga(card, keyword);
+      if (!vaga) continue;
+
+      if (urlsVistas.has(vaga.url)) continue;
+      urlsVistas.add(vaga.url);
+
+      if (typeof validarLocalizacaoSP === "function") {
+        const locOk = validarLocalizacaoSP(vaga.local);
+        if (!locOk.valido) {
+          log(`[${vagas.length + 1}/${cards.length}] ${vaga.titulo}: ${locOk.motivo}`);
+          continue;
+        }
+      }
+
+      vagas.push(vaga);
+      log(`[${vagas.length}/${cards.length}] ${vaga.titulo}${vaga.empresa ? ` - ${vaga.empresa}` : ""}`);
+    }
+
+    log(`Total: ${vagas.length} vagas extraidas para "${keyword}"`);
+    return vagas;
+  }
+
+  function handleExtrair(keyword, sendResponse) {
+    isRunning = true;
+    log("=".repeat(45));
+    log(`EXTRAIR GUPY | keyword: "${keyword}"`);
+    log("=".repeat(45));
+
+    executarExtracao(keyword)
+      .then(vagas => {
+        log(`Enviando ${vagas.length} vagas para o background`);
         sendResponse({ vagas });
-      }, 3000);
-      return;
+      })
+      .catch(err => {
+        log(`Erro fatal: ${err.message}`);
+        sendResponse({ vagas: [], erro: err.message });
+      })
+      .finally(() => {
+        isRunning = false;
+      });
+  }
+
+  function handleCheckApply(sendResponse) {
+    const botoesSelectores = [
+      'button[data-testid="apply-button"]',
+      'button[class*="apply"]',
+      'button[class*="Apply"]',
+      'button[aria-label*="Candidatar"]',
+      'button[aria-label*="Inscrever"]',
+      'button[aria-label*="candidatar"]',
+      'a[class*="apply"]',
+      'a[class*="Apply"]',
+    ];
+
+    let temBotao = false;
+    for (const sel of botoesSelectores) {
+      try {
+        const botoes = document.querySelectorAll(sel);
+        for (const btn of botoes) {
+          const estilo = window.getComputedStyle(btn);
+          if (estilo.display === "none" || estilo.visibility === "hidden") continue;
+          const texto = (btn.textContent || btn.getAttribute("aria-label") || "").toLowerCase();
+          if (texto.includes("candidatar") || texto.includes("inscrever") || texto.includes("apply")) {
+            temBotao = true;
+            break;
+          }
+        }
+      } catch {}
+      if (temBotao) break;
     }
 
-    // Portal Gupy direto — insere keyword e faz scroll
-    if (keyword) {
-      const caixa = tentarSeletores(SELETORES_CAIXA_BUSCA);
-      if (caixa && validarElemento(caixa).valido) {
-        caixa.value = "";
-        caixa.focus();
-        caixa.value = keyword;
-        const ev = new Event("input", { bubbles: true });
-        caixa.dispatchEvent(ev);
-        log(`Keyword "${keyword}" inserida na caixa de busca`);
-      }
-    }
-
-    // Scroll progressivo
-    let scrolls = 0;
-    const scrollId = agendarIntervalo(() => {
-      if (!isRunning) { clearInterval(scrollId); return; }
-      scrolls++;
-      window.scrollBy(0, 900);
-      log(`Scroll ${scrolls}/6 para carregar vagas`);
-      if (scrolls >= 6) {
-        clearInterval(scrollId);
-      }
-    }, 2000);
-
-    // Extrai após scroll
-    agendar(() => {
-      clearInterval(scrollId);
-      vagas = extrairVagasGupy(diasMax);
-      log(`${vagas.length} vagas encontradas no Gupy portal`);
-      sendResponse({ vagas });
-    }, 18000);
+    log(temBotao ? "Botao de candidatura encontrado" : "Nenhum botao de candidatura");
+    sendResponse({ temBotao, tipo: temBotao ? "external" : null });
   }
 
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -374,31 +418,18 @@
     }
 
     if (msg.acao === "extrair_gupy") {
-      isRunning = true;
-      const df = typeof msg.filtroData === "number" ? msg.filtroData : 7;
-      filtroDataAtual = df;
-      log(`Mensagem extrair_gupy recebida (keyword: "${msg.keyword}", filtro data: ${df})`);
-      buscarNoGupy(msg.keyword || "", sendResponse, df);
-      return true;
-    }
-
-    if (msg.acao === "aplicar_agora") {
-      isRunning = true;
-      aplicarVagaGupy().then(r => sendResponse(r));
+      handleExtrair(msg.keyword || "", sendResponse);
       return true;
     }
 
     if (msg.acao === "check_apply") {
-      log("Verificando botão de candidatura Gupy...");
-      const botoes = tentarSeletoresTodos(SELETORES_BOTAO_APLICAR_GUPY);
-      const temBotao = Array.from(botoes).some(btn => {
-        const v = validarElemento(btn);
-        if (!v.valido) return false;
-        const txt = (btn.textContent || btn.getAttribute("aria-label") || "").toLowerCase();
-        return txt.includes("candidatar") || txt.includes("inscrever") || txt.includes("apply");
-      });
-      log(temBotao ? "Botão de candidatura Gupy encontrado" : "Nenhum botão de candidatura Gupy");
-      sendResponse({ temBotao, tipo: temBotao ? "external" : null });
+      handleCheckApply(sendResponse);
+      return false;
+    }
+
+    if (msg.acao === "aplicar_agora") {
+      log("Auto-apply nao suportado para Gupy");
+      sendResponse({ status: "erro", motivo: "Auto-apply nao suportado para Gupy" });
       return false;
     }
   });
