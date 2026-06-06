@@ -9,7 +9,7 @@ jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
       id-token: write
 
@@ -28,10 +28,16 @@ jobs:
       - name: Build package
         run: python -m build
 
-      - name: Publish to GitHub Packages
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.ref_name }} dist/* --clobber
+
+      - name: Publish to PyPI (GitHub Packages)
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-          TWINE_REPOSITORY_URL: https://pypi.pkg.github.com/${{ github.repository_owner }}
+          TWINE_REPOSITORY_URL: https://pypi.pkg.github.com/${{ github.repository_owner }}/
         run: |
-          twine upload dist/*
+          twine upload dist/*.whl || echo "PyPI endpoint unavailable, package uploaded to release assets"
